@@ -1,0 +1,15 @@
+{
+  "name": "VSD RISC-V DEV Test",
+  "build": { "dockerfile": "Dockerfile" },
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "noVNC Desktop",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "overrideCommand": false,
+  "remoteUser": "root",
+  "containerEnv": { "DISPLAY": ":1" },
+  "postStartCommand": "supervisord -c /etc/supervisor/conf.d/vnc.conf"
+}
