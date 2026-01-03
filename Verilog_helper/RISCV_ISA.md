@@ -115,3 +115,23 @@ wire isJALR   = (instr[6:0] == 7'b1100111); // I-Type (Jump)
 wire isLUI    = (instr[6:0] == 7'b0110111); // U-Type
 wire isAUIPC  = (instr[6:0] == 7'b0010111); // U-Type
 wire isSYSTEM = (instr[6:0] == 7'b1110011); // I-Type (System)
+```
+### 5. Immediate Decoding Logic (Bit Scrambling)
+
+In RISC-V, the Immediate values (constants) are embedded inside the 32-bit instruction. However, to keep the hardware simple, the bits are often "scrambled" or split into different positions.
+
+The processor must unscramble these bits and **sign-extend** them to 32 bits before using them.
+
+Here is the Verilog logic used to reconstruct the full 32-bit immediate from the `instr` bits:
+
+| Type | Verilog Decoding Logic | Explanation |
+| :--- | :--- | :--- |
+| **U-Type** | `Uimm = {instr[31], instr[30:12], {12{1'b0}}};` | **Upper 20 bits.** <br>Places the top 20 bits into the MSBs and fills the lower 12 bits with zeros. Used for `LUI`. |
+| **I-Type** | `Iimm = {{21{instr[31]}}, instr[30:20]};` | **12-bit Sign Extended.** <br>Takes the top 12 bits `instr[31:20]` and repeats the sign bit (bit 31) to fill the upper 20 bits. |
+| **S-Type** | `Simm = {{21{instr[31]}}, instr[30:25], instr[11:7]};` | **Split 12-bit.** <br>The immediate is split into two chunks in the instruction (`[30:25]` and `[11:7]`) but combined here to form a standard 12-bit value. |
+| **B-Type** | `Bimm = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};` | **Scrambled Branch Offset.** <br>Similar to S-Type, but the bits are rotated to optimize hardware paths. <br>**Note:** Ends with `1'b0` because jump targets must be 2-byte aligned. |
+| **J-Type** | `Jimm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};` | **Scrambled Jump Offset.** <br>A complex shuffle of the top 20 bits. Also ends with `1'b0` for alignment. |
+
+**Key Concept: Sign Extension `{{N{instr[31]}}`**
+* Because immediates can be negative (e.g., jumping backwards ` -4`), we must fill the empty upper bits with the sign bit (`0` for positive, `1` for negative).
+* Example: If the 12-bit immediate is `-1` (`111...1`), the 32-bit result must be `0xFFFFFFFF`, not `0x00000FFF`.
