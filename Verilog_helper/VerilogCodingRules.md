@@ -25,6 +25,16 @@
 * **Rule:** When sending a signal **into** a submodule's input, the source can be a `reg` OR a `wire`.
 * **Reason:** The submodule just listens to the voltage level; it doesn't care if that voltage comes from a register or a wire.
 
+  
+* Important Considerations for this rule shown in table as follows.
+
+| Source of the Signal | Signal Type Needed? | Reason |
+| :--- | :--- | :--- |
+| **Generated in `always` block** | `reg` | Procedural assignments require storage (memory) to hold the value between events. |
+| **Generated in `assign` statement** | `wire` | Continuous assignments represent a permanent physical connection, not storage. |
+| **Comes from another submodule** | `wire` | The submodule is the "driver." You must use a wire to catch the signal output. |
+| **Comes from Parent Input Port** | `wire` | You cannot write to your own input; you can only read from the wire connecting to the outside world. |
+
 ### 6. The "Input Port" Rule
 
 * **Rule:** Inside a module definition, an `input` port is **ALWAYS** a `wire`.
@@ -35,6 +45,9 @@
 * **Rule:** Inside a module definition, an `output` port can be defined as `wire` (default) OR `reg`.
 * **Reason:** Use `wire` if the value comes from combinational logic (`assign`). Use `reg` if the value is calculated in an `always` block.
 
+### The Port connection type diagram for the reference (Samir Palnitkar)
+
+![Port Connection Rule](Port_Connection_Rule.png)
 
 
 
