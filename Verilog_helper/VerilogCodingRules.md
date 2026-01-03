@@ -49,5 +49,21 @@
 
 ![Port Connection Rule](Port_Connection_Rule.png)
 
+### 8. Command to use for running the simulation of any verilog file
+Inout file - TOP_module.v 
+testbench file - testbench_file.v
+  * Compile the Simulation
+  ```bash
+    iverilog -o soc_sim testbench_file.v TOP_module.v
+  ```
+  * Run the simulation
+  ```bash
+    vvp soc_sim
+  ```
+  * Open the wwaveform file given in the testbench on the line **`$dumpfile("waves.vcd");`**
+  ```bash
+    gtkwave waves.vcd
+  ```
 
+**The End.**
 
