@@ -135,3 +135,124 @@ Here is the Verilog logic used to reconstruct the full 32-bit immediate from the
 **Key Concept: Sign Extension `{{N{instr[31]}}`**
 * Because immediates can be negative (e.g., jumping backwards ` -4`), we must fill the empty upper bits with the sign bit (`0` for positive, `1` for negative).
 * Example: If the 12-bit immediate is `-1` (`111...1`), the 32-bit result must be `0xFFFFFFFF`, not `0x00000FFF`.
+
+
+---
+
+
+### Detailed Instruction Execution Logic 
+
+This section explains exactly what happens inside the processor for each instruction type through the help of the examples.
+
+### 1. R-Type (Register Operations)
+*Used for arithmetic and logic between two registers.*
+
+* **Instruction:** `ADD x1, x2, x3`
+* **Logic:** `x1 = x2 + x3`
+* **Why?** The core calculation engine. It takes two known values, computes a result, and saves it.
+
+**Example Scenario:**
+Assume `x2` holds `5` and `x3` holds `7`.
+1.  **Fetch:** Processor reads `ADD x1, x2, x3`.
+2.  **Read Regs:** It reads the values `5` (from x2) and `7` (from x3).
+3.  **Execute:** ALU calculates `5 + 7 = 12`.
+4.  **Write Back:** The value `12` is written into register `x1`.
+
+
+
+---
+
+### 2. I-Type (Immediate Operations)
+*Used for math with constants or loading data.*
+
+#### Case A: Arithmetic (`ADDI`)
+* **Instruction:** `ADDI x1, x2, 10`
+* **Logic:** `x1 = x2 + 10`
+* **Why?** Often used to increment counters (i++) or set initial values.
+
+**Example Scenario:**
+Assume `x2` holds `5`.
+1.  **Execute:** ALU calculates `5 + 10 = 15`.
+2.  **Write Back:** `15` is written to `x1`.
+
+#### Case B: Loads (`LW`)
+* **Instruction:** `LW x1, 4(x2)`
+* **Logic:** `x1 = Memory[x2 + 4]`
+* **Why?** To bring data from RAM into the CPU so we can work on it.
+
+**Example Scenario:**
+Assume `x2` points to RAM address `1000`. Memory at `1004` contains the value `99`.
+1.  **Calculate Addr:** ALU adds Base (`1000`) + Offset (`4`) = `1004`.
+2.  **Mem Read:** Processor asks RAM for the value at address `1004`.
+3.  **Write Back:** RAM returns `99`. Processor writes `99` into `x1`.
+
+
+
+---
+
+### 3. S-Type (Store Operations)
+*Used to save data from a register back to memory.*
+
+* **Instruction:** `SW x1, 8(x2)`
+* **Logic:** `Memory[x2 + 8] = x1`
+* **Why?** To save your results (like saving a file) or controlling peripherals (like turning on an LED).
+
+**Example Scenario:**
+Assume `x1` holds value `0xFF` (Result) and `x2` is `2000` (Base Address).
+1.  **Calculate Addr:** ALU adds `2000 + 8 = 2008`.
+2.  **Mem Write:** Processor sends the address `2008` and the data `0xFF` to the memory bus.
+3.  **Update:** The RAM cell at `2008` is overwritten with `0xFF`. Registers are *not* changed.
+
+---
+
+### 4. B-Type (Conditional Branch)
+*Used for `if` statements and `loops`.*
+
+* **Instruction:** `BEQ x1, x2, 16`
+* **Logic:** `if (x1 == x2) PC = PC + 16`
+* **Why?** Allows the program to make decisions based on data.
+
+**Example Scenario (Taken):**
+`PC` is currently `100`. `x1` is `5`, `x2` is `5`.
+1.  **Compare:** ALU subtracts `x1 - x2`. result is `0` (Equal).
+2.  **Decision:** Since they are equal, the branch is **Taken**.
+3.  **Update PC:** `PC` becomes `100 + 16 = 116`. Execution jumps.
+
+**Example Scenario (Not Taken):**
+`x1` is `5`, `x2` is `9`.
+1.  **Compare:** ALU finds they are not equal.
+2.  **Decision:** Branch is **Not Taken**.
+3.  **Update PC:** `PC` becomes `100 + 4` (Just goes to the very next instruction).
+
+---
+
+### 5. U-Type (Upper Immediate)
+*Used to build large numbers (20 bits at a time).*
+
+* **Instruction:** `LUI x1, 0x12345`
+* **Logic:** `x1 = 0x12345 << 12`
+* **Why?** Instructions are only 32 bits. You can't fit a 32-bit constant inside a 32-bit instruction. U-Type handles the top half.
+
+**Example Scenario:**
+1.  **Shift:** The immediate `0x12345` is shifted left by 12 bits -> `0x12345000`.
+2.  **Write Back:** `x1` becomes `0x12345000`.
+3.  *(Usually followed by an `ADDI` to fill in the lower 12 bits).*
+
+---
+
+### 6. J-Type (Jump and Link)
+*Used for Function Calls.*
+
+* **Instruction:** `JAL x1, 400`
+* **Logic:** `x1 = PC + 4; PC = PC + 400`
+* **Why?** "Jump" to a function, but "Link" (save a bookmark) so we know how to return.
+
+**Example Scenario:**
+Current `PC` is `1000`. We want to call a function at `1400`.
+1.  **Link (Bookmark):** Save `1000 + 4 = 1004` into `x1`. (This is where we will return later).
+2.  **Jump:** Add `1000 + 400 = 1400`. Set `PC` to `1400`.
+3.  **Result:** The processor is now executing code at `1400`, but `x1` remembers we came from `1000`.
+
+---
+
+**The End**
