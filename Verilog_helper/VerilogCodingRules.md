@@ -50,7 +50,7 @@
 ![Port Connection Rule](Port_Connection_Rule.png)
 
 ### 8. Command to use for running the simulation of any verilog file
-Inout file - TOP_module.v 
+Input file - TOP_module.v 
 testbench file - testbench_file.v
   * Compile the Simulation
   ```bash
@@ -64,6 +64,21 @@ testbench file - testbench_file.v
   ```bash
     gtkwave waves.vcd
   ```
+
+### Design Architecture: Why do we want Registered Outputs from any module ?
+
+
+1. **Timing Isolation (Breaking the Critical Path)**
+   - **Without Registers:** If Module A outputs combinational logic and connects to Module B, the synthesis tool sees one giant, long path that stretches through A and into B. This long path might exceed the clock period, causing a timing violation.
+   - **With Registers:** The timing path stops at the output of Module A. Module B sees a signal starting fresh from a Flip-Flop. This "isolates" the timing budget of Module A from Module B, making it much easier to meet timing requirements.
+
+2. **Glitch Filtering (Signal Integrity)**
+   - **Without Registers:** These glitches are sent out to the next module. If that module uses the signal for something sensitive (like a clock enable or asynchronous reset), the glitches can cause fatal errors.
+   - **With Registers:** Output registers act as a filter. They ignore inter-clock transients and only capture data at the clock edge. This ensures that downstream modules receive clean, stable signals, preventing false triggers on sensitive lines (like resets or enables).
+
+3. **Predictable Interface (Fixed Latency)**
+   - **Why:** Registered outputs provide a constant **Clock-to-Q** delay.
+   - **Benefit:** The output timing becomes deterministic and independent of the complexity of the internal logic cloud. This simplifies system-level integration and static timing analysis (STA).
 
 **The End.**
 
