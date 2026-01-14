@@ -65,7 +65,7 @@ testbench file - testbench_file.v
     gtkwave waves.vcd
   ```
 
-### Design Architecture: Why do we want Registered Outputs from any module ?
+## Design Architecture: Why do we want Registered Outputs from any module ?
 
 
 1. **Timing Isolation (Breaking the Critical Path)**
@@ -81,7 +81,7 @@ testbench file - testbench_file.v
    - **Benefit:** The output timing becomes deterministic and independent of the complexity of the internal logic cloud. This simplifies system-level integration and static timing analysis (STA).
   
   
-### Verilog Generate Block Guidelines
+## Verilog Generate Block Guidelines
 
 ##  Overview
 
@@ -143,6 +143,103 @@ generate
         
     end
 endgenerate
+```
+
+## MUX vs. Priority Encoder: A Digital Design Guide
+
+In RTL design, the choice between `if-else` and `case` statements directly impacts the physical hardware synthesized by the tools. The resulting hardware is typically either a **Multiplexer (MUX)** or a **Priority Encoder**, depending on whether the conditions are **mutually exclusive**.
+
+---
+
+## 1. Core Synthesis Principles
+
+| Logic Structure | Condition Nature | Synthesized Hardware | Hardware Behavior |
+| :--- | :--- | :--- | :--- |
+| **`case` statement** | Inherently Mutually Exclusive | **Multiplexer (MUX)** | Parallel evaluation; all inputs have equal weight. |
+| **`if-else` (Exclusive)** | Mutually Exclusive | **Multiplexer (MUX)** | The tool recognizes only one condition can be true at a time. |
+| **`if-else` (Overlapping)**| Not Mutually Exclusive | **Priority Encoder** | Chained logic; the first true condition inhibits the rest. |
+
+---
+
+## 2. The Multiplexer (MUX)
+
+A MUX is synthesized when selection conditions are **mutually exclusive**—meaning only one condition can be true at any given time. This results in parallel logic that is generally faster (better timing) and more area-efficient.
+
+### A. Using `case` Statements
+In Verilog, a `case` statement naturally describes a MUX because the case expression can only match one branch at a time.
+
+```verilog
+module mux_example (
+    input [1:0] sel,      // The explicit control signal
+    input [3:0] in_data,
+    output reg out_data
+);
+
+    // MUX Logic: Synthesis tool sees 'sel' can only have ONE value at a time.
+    always @(*) begin
+        case (sel)
+            2'b11:   out_data = in_data[3];
+            2'b10:   out_data = in_data[2];
+            2'b01:   out_data = in_data[1];
+            2'b00:   out_data = in_data[0];
+            default: out_data = 1'b0;
+        endcase
+    end
+endmodule
+```
+
+### B. Mutually Exclusive if-else
+
+If the tool can prove the conditions are mutually exclusive (e.g., checking different values of the same signal), it optimizes the logic into a MUX rather than a priority chain.
+```Verilog
+// Even though this is if-else, the tool knows 'sel' cannot be 00 and 01 simultaneously.
+// RESULT: MUX (Parallel Logic)
+always @(*) begin
+    if (sel == 2'b00)      out = a;
+    else if (sel == 2'b01) out = b;
+    else if (sel == 2'b10) out = c;
+    else                   out = d;
+end
+```
+
+## 2. 3. The Priority Encoder
+
+A Priority Encoder is synthesized when conditions are not mutually exclusive. The hardware must evaluate conditions in the specific order they are written, creating a **priority chain** where the first true condition **wins** and blocks the others.
+
+### A. Request-Based Priority
+When handling multiple independent signals where more than one can be active at once, a priority encoder selects the highest-priority signal.
+
+```verilog
+module priority_encoder (
+    input [3:0] req,      // Multiple requests can be 1 at the same time
+    output reg [1:0] encoder_out
+);
+
+    // Priority Logic: 'req[3]' is checked first. It "inhibits" the others.
+    always @(*) begin
+        if (req[3])           // Priority 1 (Highest)
+            encoder_out = 2'b11;
+        else if (req[2])      // Priority 2
+            encoder_out = 2'b10;
+        else if (req[1])      // Priority 3
+            encoder_out = 2'b01;
+        else                  // Priority 4 (Lowest)
+            encoder_out = 2'b00;
+    end
+endmodule
+```
+
+### B. Functional Overlap
+
+In this scenario, if both turbo_mode and power_save are TRUE, the hardware must build logic to ensure turbo_mode takes precedence because it was checked first in the if block.
+
+```Verilog
+// RESULT: Priority Encoder (Serial/Chained Logic)
+always @(*) begin
+    if (turbo_mode)       speed = 100; // Priority 1
+    else if (power_save)  speed = 10;  // Priority 2
+    else                  speed = 50;  // Default
+end
 ```
 
 **The End.**
