@@ -1,31 +1,34 @@
 # Verilog Coding rules
 
-### 1. The "Always" Rule
+## 1. The "Always" Rule
 
 * **Rule:** If a signal is on the **left** side of an assignment inside an `always` block, it **MUST** be a `reg`.
 * **Reason:** The `always` block implies "procedure" or "memory," so the variable must hold its value until the next update.
+  
+---
 
-### 2. The "Assign" Rule
+## 2. The "Assign" Rule
 
 * **Rule:** If a signal is on the **left** side of an `assign` statement, it **MUST** be a `wire`.
 * **Reason:** `assign` creates a permanent physical connection (like soldering a wire), not a storage memory.
 
-### 3. The "Child-to-Parent" Rule
+---
+
+## 3. The "Child-to-Parent" Rule
 
 * **Rule:** When connecting a submodule's **output** to the parent module, the parent's receiving signal **MUST** be a `wire`.
 * **Reason:** The submodule is already "driving" the signal. You cannot plug a hard driver directly into a storage bucket (`reg`).
-
-### 4. The "Wire-then-Reg" Rule (The Fix)
+---
+## 4. The "Wire-then-Reg" Rule (The Fix)
 
 * **Rule:** To store a submodule's output into a `reg`, you must first catch it with a `wire` in the parent's module, then copy it to the `reg` inside an `always` block.
 * **Reason:** A `reg` can only have **one master** (the `always` block). If you connected the submodule directly to the `reg`, the submodule would try to fight the `always` block for control, causing a conflict as there is a difference in **who is doing the driving (writing)** versus **who is being read**.
-
-### 5. The "Parent-to-Child" Rule
+---
+## 5. The "Parent-to-Child" Rule
 
 * **Rule:** When sending a signal **into** a submodule's input, the source can be a `reg` OR a `wire`.
 * **Reason:** The submodule just listens to the voltage level; it doesn't care if that voltage comes from a register or a wire.
 
-  
 * Important Considerations for this rule shown in table as follows.
 
 | Source of the Signal | Signal Type Needed? | Reason |
@@ -35,12 +38,12 @@
 | **Comes from another submodule** | `wire` | The submodule is the "driver." You must use a wire to catch the signal output. |
 | **Comes from Parent Input Port** | `wire` | You cannot write to your own input; you can only read from the wire connecting to the outside world. |
 
-### 6. The "Input Port" Rule
+## 6. The "Input Port" Rule
 
 * **Rule:** Inside a module definition, an `input` port is **ALWAYS** a `wire`.
 * **Reason:** You cannot write to your own input; you only read from it.
 
-### 7. The "Output Port" Rule
+## 7. The "Output Port" Rule
 
 * **Rule:** Inside a module definition, an `output` port can be defined as `wire` (default) OR `reg`.
 * **Reason:** Use `wire` if the value comes from combinational logic (`assign`). Use `reg` if the value is calculated in an `always` block.
@@ -49,7 +52,7 @@
 
 ![Port Connection Rule](Port_Connection_Rule.png)
 
-### 8. Command to use for running the simulation of any verilog file
+## 8. Command to use for running the simulation of any verilog file
 Input file - TOP_module.v 
 testbench file - testbench_file.v
   * Compile the Simulation
@@ -66,7 +69,7 @@ testbench file - testbench_file.v
   ```
 ---
 
-### 9. Design Architecture: Why do we want Registered Outputs from any module ?
+## 9. Design Architecture: Why do we want Registered Outputs from any module ?
 
 
 1. **Timing Isolation (Breaking the Critical Path)**
@@ -83,9 +86,9 @@ testbench file - testbench_file.v
   
 ---
   
-### 10. Verilog Generate Block Guidelines
+## 10. Verilog Generate Block Guidelines
 
-##  Overview
+###  Overview
 
 The `generate` construct allows you to create **variable hardware structures** at compile-time (elaboration time). It is used to:
 
@@ -96,7 +99,7 @@ The `generate` construct allows you to create **variable hardware structures** a
 
 ---
 
-## 5 Golden Rules
+### 5 Golden Rules
 
 ### 1. `genvar` is Mandatory
 You cannot use a standard `integer` or `reg` for loop iterators. You must explicitly declare a `genvar`.
@@ -125,7 +128,7 @@ Variables declared *inside* a generate block are local to that specific iteratio
 
 ---
 
-## Syntax Templates
+### Syntax Templates
 
 ### 1. Loop Generate (Multiple Instances)
 Use this to create arrays of modules or logic.
@@ -149,13 +152,13 @@ endgenerate
 
 ---
 
-### 11. MUX vs. Priority Encoder: A Digital Design Guide
+## 11. MUX vs. Priority Encoder: A Digital Design Guide
 
 In RTL design, the choice between `if-else` and `case` statements directly impacts the physical hardware synthesized by the tools. The resulting hardware is typically either a **Multiplexer (MUX)** or a **Priority Encoder**, depending on whether the conditions are **mutually exclusive**.
 
 ---
 
-## 1. Core Synthesis Principles
+### 1. Core Synthesis Principles
 
 | Logic Structure | Condition Nature | Synthesized Hardware | Hardware Behavior |
 | :--- | :--- | :--- | :--- |
@@ -165,7 +168,7 @@ In RTL design, the choice between `if-else` and `case` statements directly impac
 
 ---
 
-## 2. The Multiplexer (MUX)
+### 2. The Multiplexer (MUX)
 
 A MUX is synthesized when selection conditions are **mutually exclusive**—meaning only one condition can be true at any given time. This results in parallel logic that is generally faster (better timing) and more area-efficient.
 
@@ -206,7 +209,7 @@ always @(*) begin
 end
 ```
 
-## 3. The Priority Encoder
+### 3. The Priority Encoder
 
 A Priority Encoder is synthesized when conditions are not mutually exclusive. The hardware must evaluate conditions in the specific order they are written, creating a **priority chain** where the first true condition **wins** and blocks the others.
 
@@ -248,9 +251,9 @@ end
 
 ---
 
-### 12. Reset Bridge (Reset synchronizers for the asynchronous reset insertion and de-insertion)
+## 12. Reset Bridge (Reset synchronizers for the asynchronous reset insertion and de-insertion)
 
-## 1. The Circuit Structure
+### 1. The Circuit Structure
 It consists of two Flip-Flops (FF) connected in a chain.
 
 * **Clock:** Connected to the system clock.
@@ -258,16 +261,16 @@ It consists of two Flip-Flops (FF) connected in a chain.
 * **Data Input (D):** The first flip-flop's D input is tied permanently to Logic '1' (VCC).
 * **Output:** The output of the second flip-flop is your "Safe Reset."
 
-## 2. Step-by-Step Operation
+### 2. Step-by-Step Operation
 Let's trace exactly what happens to the electrons when you press and release the button.
 
-## Scenario A: You PRESS the Reset Button (Assertion)
+### Scenario A: You PRESS the Reset Button (Assertion)
 * **Action:** The external reset signal goes LOW (0).
 * **Physics:** This 0 hits the asynchronous CLR pin of the flip-flops.
 * **Reaction:** The flip-flops do not care about the clock. When the CLR pin is hit, they force their output Q to 0 instantly.
 * **Result:** The entire system resets immediately. No waiting.
 
-## Scenario B: You RELEASE the Reset Button (De-assertion)
+### Scenario B: You RELEASE the Reset Button (De-assertion)
 * **Action:** The external reset signal goes back to HIGH (1).
 * **The Danger Zone:** This release could happen at any random nanosecond. It might happen 0.01ns before a clock edge (Setup Violation) or 0.01ns after (Hold Violation). If we sent this raw signal to the 256 modules, half might see a '1' and half might see a '0'. Corruption!
 * **The Bridge's Job:**
@@ -280,20 +283,20 @@ Let's trace exactly what happens to the electrons when you press and release the
 * **Output:** The Q of FF2 goes to 1.
 * **Result:** The reset signal transitions from 0 to 1 exactly aligned with the clock edge.
 
-## 3. Why Two Flip-Flops? (The "Metastability" Guard)
+### 3. Why Two Flip-Flops? (The "Metastability" Guard)
 You might ask, "Why not just use one flip-flop?"
 If you release the reset button exactly at the same moment the clock ticks, the first flip-flop gets confused. It enters a state called **Metastability** (it vibrates between 0 and 1, or settles to a random value).
 
 * **If we had 1 FF:** This garbage signal would go to your 256 modules. Some would reset, some wouldn't. Crash.
 * **With 2 FFs:** If FF1 goes metastable, it usually settles down to a stable '0' or '1' within one clock cycle. By the time the next clock edge hits FF2, the signal is stable. FF2 sends a clean '0' or '1' to the system.
 
-## Summary Checklist
+### Summary Checklist
 * **Button Pressed:** Async pins force output Low immediately. (Fast)
 * **Button Released:** Async pins let go, but FFs wait. (Pause)
 * **Clock Ticks:** FFs clock in a '1'. (Sync)
 * **Output:** The '1' travels to the Reset Tree perfectly aligned with the system clock.
 
-## 4. The Reset Tree (The "Delivery System") **This topic comes when i want to provide reset to the 256 submodules from the top modules**
+### 4. The Reset Tree (The "Delivery System") **This topic comes when i want to provide reset to the 256 submodules from the top modules**
 
 This concept is same for the **`asynchronous reset`** as well as the **`synchronous reset`**.
 Once the Reset Bridge has created a clean, safe signal, we face a physical problem: **Distribution**.
@@ -302,7 +305,7 @@ Once the Reset Bridge has created a clean, safe signal, we face a physical probl
 * **The Consequence (Skew):** If you try to drive everyone at once, the module closest to the bridge will get the reset at `Time = 0.1ns`, but the module at the far end of the chip might get it at `Time = 2.0ns`. This time difference is called **Skew**.
 * **The Failure:** If the skew is larger than the clock period, different parts of your chip will be in different states (some reset, some running). This causes system failure.
 
-## The Solution: The Buffer Pyramid
+### The Solution: The Buffer Pyramid
 Instead of one big wire, we build a tree structure using **Buffers** (amplifiers).
 
 ### How to Build It (The Logic)
@@ -317,7 +320,7 @@ Imagine a pyramid structure:
 * **Timing Balance:** Because every path goes through the exact same number of stages (4 stages), the delay to reach Module #1 is almost identical to the delay to reach Module #256.
 * **Result:** The skew is minimized to near zero.
 
-## When to Use a Reset Tree?
+### When to Use a Reset Tree?
 You generally need a reset tree when:
 1.  **High Fanout:** You are driving more than ~20-50 flip-flops (varies by technology node).
 2.  **Large Area:** Your modules are physically spread far apart on the silicon.
@@ -325,19 +328,19 @@ You generally need a reset tree when:
 
 *Note: In modern EDA tools (Vivado/Design Compiler), you often don't write the tree in Verilog manually. You set a constraint called "Max Fanout," and the tool builds this tree for you automatically during synthesis.*
 
-## Summary Checklist
+### Summary Checklist
 * **Problem:** One signal cannot drive 256 loads (Fanout).
 * **Risk:** The signal arrives at different times (Skew), causing crashes.
 * **Solution:** A Pipelined Tree of buffers splits the load.
 * **Outcome:** All 256 modules receive the reset signal at the **same time** with full signal strength.
 ---
-### 13. Difference between usage of blocking and non-blocking assignment in verilog
+## 13. Difference between usage of blocking and non-blocking assignment in verilog
 
 This is the "secret engine" of Verilog. To understand why we pick `=` vs `<=`, you have to understand exactly what happens inside a single **Time Step**.
 
 A "Time Step" in Verilog (like T=10ns) is not a single instant. It is a bucket of prioritized to-do lists.
 
-## Part 1: Anatomy of a Time Step (The Event Queue)
+### Part 1: Anatomy of a Time Step (The Event Queue)
 
 When the simulator reaches a specific time (e.g., 10ns), it pauses the clock and performs tasks in a strict order. This order is called the **Stratified Event Queue**.
 
@@ -360,7 +363,7 @@ Think of it as a **3-Phase Process** happening instantly at T=10ns:
 
 ---
 
-## Part 2: Why Blocking (`=`) for Combinational Logic?
+### Part 2: Why Blocking (`=`) for Combinational Logic?
 
 **The Goal:** We want "Chain Reactions." If I change A, B should change instantly so C can use it.
 
@@ -401,7 +404,7 @@ end
 
 ---
 
-## Part 3: Why Non-Blocking (<=) for Sequential Logic?
+### Part 3: Why Non-Blocking (<=) for Sequential Logic?
 
 **The Goal:** We want "Snapshots." All Flip-Flops must change together using data from the start of the clock cycle.
 
@@ -444,7 +447,7 @@ end
 
 ---
 
-## Summary Visualization
+### Summary Visualization
 
 | Assignment | Logic Type | Phase executed in | Why? |
 | :--- | :--- | :--- | :--- |
