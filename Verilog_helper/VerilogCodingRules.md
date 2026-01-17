@@ -64,8 +64,9 @@ testbench file - testbench_file.v
   ```bash
     gtkwave waves.vcd
   ```
+---
 
-## Design Architecture: Why do we want Registered Outputs from any module ?
+### 9. Design Architecture: Why do we want Registered Outputs from any module ?
 
 
 1. **Timing Isolation (Breaking the Critical Path)**
@@ -80,8 +81,9 @@ testbench file - testbench_file.v
    - **Why:** Registered outputs provide a constant **Clock-to-Q** delay.
    - **Benefit:** The output timing becomes deterministic and independent of the complexity of the internal logic cloud. This simplifies system-level integration and static timing analysis (STA).
   
+---
   
-## Verilog Generate Block Guidelines
+### 10. Verilog Generate Block Guidelines
 
 ##  Overview
 
@@ -145,7 +147,9 @@ generate
 endgenerate
 ```
 
-## MUX vs. Priority Encoder: A Digital Design Guide
+---
+
+### 11. MUX vs. Priority Encoder: A Digital Design Guide
 
 In RTL design, the choice between `if-else` and `case` statements directly impacts the physical hardware synthesized by the tools. The resulting hardware is typically either a **Multiplexer (MUX)** or a **Priority Encoder**, depending on whether the conditions are **mutually exclusive**.
 
@@ -241,7 +245,10 @@ always @(*) begin
     else                  speed = 50;  // Default
 end
 ```
-## Reset Bridge (Reset synchronizers for the asynchronous reset insertion and de-insertion)
+
+---
+
+### 12. Reset Bridge (Reset synchronizers for the asynchronous reset insertion and de-insertion)
 
 ## 1. The Circuit Structure
 It consists of two Flip-Flops (FF) connected in a chain.
@@ -323,6 +330,125 @@ You generally need a reset tree when:
 * **Risk:** The signal arrives at different times (Skew), causing crashes.
 * **Solution:** A Pipelined Tree of buffers splits the load.
 * **Outcome:** All 256 modules receive the reset signal at the **same time** with full signal strength.
+---
+### 13. Difference between usage of blocking and non-blocking assignment in verilog
 
+This is the "secret engine" of Verilog. To understand why we pick `=` vs `<=`, you have to understand exactly what happens inside a single **Time Step**.
+
+A "Time Step" in Verilog (like T=10ns) is not a single instant. It is a bucket of prioritized to-do lists.
+
+## Part 1: Anatomy of a Time Step (The Event Queue)
+
+When the simulator reaches a specific time (e.g., 10ns), it pauses the clock and performs tasks in a strict order. This order is called the **Stratified Event Queue**.
+
+Think of it as a **3-Phase Process** happening instantly at T=10ns:
+
+### Phase 1: The Active Region (Calculation)
+* This is where **Blocking Assignments (`=`)** happen.
+* This is where **Logic Calculation** happens (Evaluating RHS of equations).
+* The simulator runs everything here until there is nothing left to do.
+
+### Phase 2: The Inactive Region
+* Rarely used, mostly for `#0` delays.
+
+### Phase 3: The NBA Region (Update)
+* **NBA** stands for Non-Blocking Assignment.
+* This is where the updates scheduled by **`<=`** finally happen.
+* **Crucially:** This happens **after** all calculations in Phase 1 are finished.
+
+> **"End of the Time Step"** simply means: Phase 1, 2, and 3 are all empty. The simulator is now allowed to advance the clock to T=11ns.
+
+---
+
+## Part 2: Why Blocking (`=`) for Combinational Logic?
+
+**The Goal:** We want "Chain Reactions." If I change A, B should change instantly so C can use it.
+
+### The Code:
+```verilog
+always @(*) begin
+    b = a + 1;  // Line 1
+    c = b + 1;  // Line 2
+end
+```
+
+### How it executes in the Time Step:
+**Active Region (Phase 1):**
+1. **Execute Line 1:** `b` is updated to `a+1` immediately.
+2. **Execute Line 2:** The simulator reads the new value of `b` and updates `c`.
+
+**Result:** Correct. `c` equals `a+2`. This mimics electricity flowing through gates.
+
+---
+
+### What if we used Non-Blocking (<=)?
+```verilog
+always @(*) begin
+    b <= a + 1; // Schedule update for Phase 3
+    c <= b + 1; // Read OLD 'b' (from Phase 1)
+end
+```
+### How it executes in the Time Step:
+
+**Active Region (Phase 1):**
+* **Line 1:** Calculate `a+1`, but wait. Do not update `b` yet.
+* **Line 2:** Calculate `b+1` using the **OLD** value of `b` (because `b` hasn't changed yet!). Schedule `c`.
+
+**NBA Region (Phase 3):**
+* Now update `b` and `c`.
+
+**The Problem:** `c` was calculated using stale data. The simulator now sees `b` changed, so it triggers the `always` block again (**Delta Cycle**). It eventually fixes itself, but it’s slow and error-prone.
+
+---
+
+## Part 3: Why Non-Blocking (<=) for Sequential Logic?
+
+**The Goal:** We want "Snapshots." All Flip-Flops must change together using data from the start of the clock cycle.
+
+```verilog
+always @(posedge clk) begin
+    q2 <= q1; // Capture q1
+    q1 <= in; // Capture in
+end
+```
+
+### How it executes in the Time Step:
+
+**Active Region (Phase 1):**
+1. **Execute Line 1:** Read `q1`'s current value. Calculate the result. Do not write to `q2` yet. Throw the result into the **NBA bucket**.
+2. **Execute Line 2:** Read `in`'s current value. Do not write to `q1` yet. Throw result into **NBA bucket**.
+
+**NBA Region (Phase 3):**
+* All calculations are done. Now, dump the buckets.
+* Update `q2` with the old `q1`.
+* Update `q1` with `in`.
+
+**Result:** **Perfect Shift.** `q2` got the old `q1` before `q1` was overwritten.
+
+---
+
+### What if we used Blocking (=)?
+
+```verilog
+always @(posedge clk) begin
+    q1 = in; // Update q1 IMMEDIATELY in Phase 1
+    q2 = q1; // Read the NEW q1 immediately
+end
+```
+
+**Active Region (Phase 1):**
+* **Line 1:** `q1` becomes `in` right now.
+* **Line 2:** `q2` reads `q1`. Since `q1` just changed, `q2` becomes `in` too.
+
+**Result:** **Race Condition / Logic Error.** You wanted to shift `in -> q1 -> q2`. Instead, you short-circuited `in -> q2`. You lost data.
+
+---
+
+## Summary Visualization
+
+| Assignment | Logic Type | Phase executed in | Why? |
+| :--- | :--- | :--- | :--- |
+| **Blocking (=)** | Combinational | **Phase 1 (Active)** | We need immediate results for the next line of code (like a continuous wire). |
+| **Non-Blocking (<=)** | Sequential | **Phase 3 (NBA)** | We need to "read first, write later" to safely swap data between registers without races. |
 **The End.**
 
