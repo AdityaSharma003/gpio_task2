@@ -450,5 +450,7 @@ end
 | :--- | :--- | :--- | :--- |
 | **Blocking (=)** | Combinational | **Phase 1 (Active)** | We need immediate results for the next line of code (like a continuous wire). |
 | **Non-Blocking (<=)** | Sequential | **Phase 3 (NBA)** | We need to "read first, write later" to safely swap data between registers without races. |
+
+
 **The End.**
 
