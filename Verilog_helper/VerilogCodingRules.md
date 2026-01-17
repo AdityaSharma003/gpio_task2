@@ -454,6 +454,44 @@ end
 | **Blocking (=)** | Combinational | **Phase 1 (Active)** | We need immediate results for the next line of code (like a continuous wire). |
 | **Non-Blocking (<=)** | Sequential | **Phase 3 (NBA)** | We need to "read first, write later" to safely swap data between registers without races. |
 
+## 14. The Simulation-Synthesis Mismatch
+
+A mismatch occurs when the behavior of your **RTL Simulation** does not match the behavior of the **Physical Hardware** produced by synthesis. This is a critical failure because your "verified" design will break when programmed onto an FPGA or chip.
+
+### Example: The Blocking Race Condition
+If you use blocking assignments (`=`) in a sequential block, you create a disaster.
+
+```verilog
+always @(posedge clk) begin
+    B = A; 
+    C = B; 
+end
+```
+
+| Environment | Behavior | Result |
+| :--- | :--- | :--- |
+| **Simulation** | Executes line-by-line. B updates, then C immediately reads the **new** B. | Data moves from A to C in **1 clock cycle**. |
+| **Synthesis** | Hardware is parallel. C captures the **old** value of B because of physical setup/hold requirements. | Data moves from A to C in **2 clock cycles**. |
+
+
+
+---
+
+### Misuse of Non-Blocking Assignments in Combinational Logic
+Using non-blocking assignments (`<=`) in combinational blocks creates "Delta Cycle" delays that don't exist in real wires.
+```verilog
+// BAD CODE: Using NBA in combinational logic
+always @(*) begin
+    temp <= a & b;    // Scheduled for NBA Region
+    out  <= temp | c; // Reads OLD value of temp
+end
+```
+#### The Mismatch Breakdown
+* **In Simulation**: When `a` changes, `temp` is scheduled to update at the end of the time step. The second line reads the **old** value of `temp` that existed before the change. The simulator then has to trigger the block a second time to settle on the right value.
+* **In Synthesis**: The tool creates a direct gate-level connection. It assumes `temp` and `out` update as fast as the electrons can move through the gates. It does not implement a "wait until the end of the step" mechanism.
+* **Result**: Simulation might show a temporary "glitch" or a delayed response that the physical hardware does not have.
+
+*That's why it's better to use `=` blocking assignment in the **combinational procedural block** and `<=` non-blocking assignment in the **sequential procedural block**.*
 
 **The End.**
 
