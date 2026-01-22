@@ -493,5 +493,61 @@ end
 
 *That's why it's better to use `=` blocking assignment in the **combinational procedural block** and `<=` non-blocking assignment in the **sequential procedural block**.*
 
+## 15. Simulation-Synthesis Mismatch.  
+
+1. For this block of code where the sensitivity list contains `*` symbol.
+
+```verilog
+always @(*) begin
+  y = a & b;
+end
+```
+2. For this block of code where the sensitivity list contains `a` only.
+
+```verilog
+always @(a) begin
+  y = a & b;
+end
+```
+
+### 1. The Hardware Result (Identical)
+
+Synthesis tools (like Design Compiler, Vivado, or Quartus) are designed to "infer" the intended hardware from the logic expressions inside the block.
+
+* When the tool sees `y = a & b;`, it determines that  is the logical AND of  and .
+* It ignores the fact that you only listed `a` in the sensitivity list because, in real CMOS gates, there is no way to tell an AND gate to "only update when input A changes."
+* **Result:** In both cases, the tool will produce a standard **2-input AND gate**.
+
+### 2. The Simulation Result (Different)
+
+Verilog simulators are **event-driven** software. They only calculate what they are told to calculate, exactly when they are told to do so.
+
+* **In `always @(*)`:** The simulator "watches" every signal on the Right-Hand Side (RHS). If  changes OR  changes, it re-runs the block.  always stays correct.
+* **In `always @(a)`:** The simulator only watches . If  toggles from , the simulator **does nothing**. The value of  in your simulation window will stay at its old value until  happens to toggle.
+
+### 3. Why This is Dangerous
+
+This mismatch creates a "false pass" or "false fail" scenario:
+
+1. **The "Hidden" Bug:** You might spend days debugging why your RTL simulation is failing, only to find out the logic is fine, but the simulation simply isn't updating the signal.
+2. **The Silicon Failure:** Worse, you might have a bug in your logic that is "masked" by the stale value in simulation. Your RTL simulation passes, you sign off on the design, and then the actual chip fails because the real hardware (the AND gate) is reacting to  when the simulation didn't.
+
+### 4. Tool Warnings
+
+In a professional environment, your synthesis tool or a **Linter** (like SpyGlass) will flag this immediately. You will see a warning similar to:
+
+> `Warning: [Synth 8-614] signal 'b' is read in the block but is not in the sensitivity list.`
+
+### The "Golden Rule" of Combinational RTL
+
+To prevent these headaches, modern RTL coding standards (and most senior designers) insist on one of two things:
+
+* **Verilog:** Always use `always @(*)` for combinational logic.
+* **SystemVerilog:** Always use `always_comb`.
+
+`always_comb` is even better because it **forces** the simulator to include all signals and ensures the block triggers at time zero, preventing even more subtle simulation bugs.
+
+---
+
 **The End.**
 
